@@ -1,0 +1,6 @@
+#!/bin/sh -eu
+
+# install gdbserver to enable snap run --experimental-gdbserver
+apt update
+apt dist-upgrade -y
+apt install --no-install-recommends -y gdbserver
