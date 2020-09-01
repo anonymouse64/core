@@ -1,18 +1,30 @@
 name: core
 version: 16-2
 version-script: |
-    # remember to keep version script in sync with "Makefile"
-    echo "16-$(cat prime/usr/lib/snapd/info |cut -f2 -d=| sed s/~ubuntu.*// | cut -b1-29)"
+  # remember to keep version script in sync with "Makefile"
+  echo "16-$(cat prime/usr/lib/snapd/info |cut -f2 -d=| sed s/~ubuntu.*// | cut -b1-29)"
 summary: snapd runtime environment
 description: The core runtime environment for snapd
 confinement: strict
 type: os
+build-base: core
 grade: stable
+
+package-repositories:
+  - type: apt
+    ppa: snappy-dev/image
 
 parts:
   check:
-    plugin: dump
+    source: .
+    plugin: nil
+    build-packages:
+      - software-properties-common
     override-pull: |
+      apt-add-repository -y ppa:snappy-dev/image
+      sed -i '/^deb/s/$/ universe/' /etc/apt/sources.list
+      apt update
+      apt install -y livecd-rootfs
       if ! apt-cache policy ubuntu-core-config|grep -q ppa.launchpad.net/snappy-dev/image; then
           echo "The ppa:snappy-dev/image PPA is missing."
           echo "This probably means that the build was triggered incorrectly."
@@ -28,7 +40,11 @@ parts:
 
   livebuild:
     source: .
+    override-build: |
+      snapcraftctl build
     plugin: make
+    make-parameters:
+      - VERBOSE=1
     build-packages:
       - livecd-rootfs
       - shellcheck
@@ -42,7 +58,7 @@ parts:
   fontconfig-xenial:
     plugin: nil
     source: https://github.com/snapcore/fc-cache-static-builder.git
-    build: |
+    override-build: |
       ./build-from-security.py xenial
       mkdir -p $SNAPCRAFT_PART_INSTALL/bin
       cp -a fc-cache-xenial $SNAPCRAFT_PART_INSTALL/bin/fc-cache-v6
@@ -52,10 +68,9 @@ parts:
   fontconfig-bionic:
     plugin: nil
     source: https://github.com/snapcore/fc-cache-static-builder.git
-    build: |
+    override-build: |
       ./build-from-security.py bionic
       mkdir -p $SNAPCRAFT_PART_INSTALL/bin
       cp -a fc-cache-bionic $SNAPCRAFT_PART_INSTALL/bin/fc-cache-v7
     stage:
       - bin/fc-cache-v7
-
